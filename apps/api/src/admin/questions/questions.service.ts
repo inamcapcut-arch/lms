@@ -34,20 +34,19 @@ export class QuestionsService {
     });
   }
 
-  // Not fully implemented yet due to Prisma schema having `MCQOption` relations, 
-  // but let's implement basic structure
+  /**
+   * Creates an MCQ question. The prompt is stored in Question.text, which the
+   * schema documents as the MCQ problem statement, so no separate table or
+   * migration is required.
+   */
   async createMCQQuestion(dto: CreateMCQQuestionDto) {
     return this.prisma.question.create({
       data: {
         type: 'MCQ',
+        text: dto.problemStatement,
         marks: dto.marks,
         difficulty: dto.difficulty,
         tags: dto.tags,
-        // Using a generic problemStatement since the schema connects it
-        // We actually need to adjust the schema or just store problemStatement in codingQuestion? 
-        // Wait, schema has codingQuestion with problemStatement, but no generic problemStatement on Question.
-        // I will add problemStatement to a temporary place or just adapt the schema later.
-        // For now, let's just create the MCQ options.
         mcqOptions: {
           create: dto.options,
         },

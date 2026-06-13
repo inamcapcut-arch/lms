@@ -81,12 +81,12 @@ const worker = new Worker<CodeExecutionRequest, any>(
         console.error(`Failed to fetch test cases from cache/DB: ${err.message}`);
       }
 
-      // Default fallback if no test cases found
+      // No silent fallback: grading a real submission against placeholder test
+      // cases would produce bogus scores. Fail loudly instead so the missing
+      // test cases are surfaced and fixed.
       if (testCases.length === 0) {
-        testCases = [
-          { id: 'tc_fallback_1', input: '2 7 11 15\n9', expectedOutput: '0 1', weightage: 10 },
-          { id: 'tc_fallback_2', input: '3 2 4\n6', expectedOutput: '1 2', weightage: 10 },
-        ];
+        console.error(`No test cases found for question ${questionId}. Refusing to grade against placeholders.`);
+        throw new Error(`No test cases configured for question ${questionId}.`);
       }
     }
 
