@@ -10,10 +10,23 @@ import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { getJwtSecret } from '../common/config/jwt.config';
+
+function resolveSocketCorsOrigins(): string[] | boolean {
+  const raw = process.env.CORS_ORIGINS;
+  if (raw && raw.trim().length > 0) {
+    return raw.split(',').map((o) => o.trim()).filter((o) => o.length > 0);
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return [];
+  }
+  return ['http://localhost:3000', 'http://127.0.0.1:3000'];
+}
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: resolveSocketCorsOrigins(),
+    credentials: true,
   },
   namespace: 'attempts',
 })
@@ -41,7 +54,7 @@ export class AttemptsGateway implements OnGatewayConnection, OnGatewayDisconnect
 
       const token = authHeader.replace('Bearer ', '');
       const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET || 'super-secret-development-key',
+        secret: getJwtSecret(),
       });
 
       // Fetch user and ensure status is active

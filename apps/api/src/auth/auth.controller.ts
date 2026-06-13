@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Req, HttpCode, HttpStatus, Res, Unauthoriz
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import type { Request, Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('api/v1/auth')
@@ -14,6 +15,8 @@ export class AuthController {
     return this.authService.getProfile(req.user.id);
   }
 
+  // Stricter throttle on login to mitigate credential brute-force attacks.
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
