@@ -4,6 +4,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 
 function resolveCorsOrigins(): string[] | boolean {
   const raw = process.env.CORS_ORIGINS;
@@ -49,6 +50,12 @@ async function bootstrap() {
 
   // Clean, leak-free error responses.
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  // Multi-replica WebSocket fan-out via Redis pub/sub. Without this, room
+  // broadcasts only reach sockets on the same api replica.
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   // Graceful shutdown.
   app.enableShutdownHooks();

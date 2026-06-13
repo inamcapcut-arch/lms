@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { JwtModule } from '@nestjs/jwt';
+import { getJwtSecret } from '../common/config/jwt.config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 import { AttemptsController } from './attempts.controller';
@@ -15,7 +16,7 @@ import { AutoSubmitEventsListener } from './processors/auto-submit.events';
     PrismaModule,
     RedisModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'super-secret-development-key',
+      secret: getJwtSecret(),
     }),
     BullModule.registerQueue(
       {
