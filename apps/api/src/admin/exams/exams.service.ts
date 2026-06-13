@@ -11,7 +11,11 @@ export class ExamsService {
     private readonly activityService: ActivityService,
   ) {}
 
-  async createExam(dto: CreateExamDto, adminId: string) {
+  async createExam(dto: CreateExamDto, creatorId: string, creatorRole?: string) {
+    // ADMIN-authored exams may be published directly; TRAINER-authored exams
+    // remain DRAFT until an ADMIN approves them.
+    const initialStatus = creatorRole === 'ADMIN' ? 'PUBLISHED' : 'DRAFT';
+
     const exam = await this.prisma.exam.create({
       data: {
         title: dto.title,
@@ -19,7 +23,8 @@ export class ExamsService {
         startTime: new Date(dto.startTime),
         endTime: new Date(dto.endTime),
         durationMinutes: dto.durationMinutes,
-        createdBy: adminId,
+        status: initialStatus,
+        createdBy: creatorId,
         questions: {
           create: dto.questionIds.map((id, index) => ({
             question: { connect: { id } },
@@ -122,6 +127,42 @@ export class ExamsService {
     if (!exam) throw new NotFoundException('Exam not found');
 
     return this.prisma.exam.delete({ where: { id } });
+  }
+
+  /**
+   * Approves and publishes an exam. Only PUBLISHED exams can be started by
+   * students (enforced in AttemptsService.startAttempt).
+   */
+  async publishExam(id: string, adminId: string) {
+    const exam = await this.prisma.exam.findUnique({ where: { id } });
+    if (!exam) throw new NotFoundException('Exam not found');
+
+    const updated = await this.prisma.exam.update({
+      where: { id },
+      data: { status: 'PUBLISHED' },
+    });
+
+    await this.activityService.logActivity(
+      ActivityType.BATCH_ASSIGNED,
+      `Exam "${exam.title}" approved and published`,
+      adminId,
+      { examId: exam.id },
+    );
+
+    return updated;
+  }
+
+  /**
+   * Reverts an exam to DRAFT (e.g. after rejecting changes).
+   */
+  async unpublishExam(id: string) {
+    const exam = await this.prisma.exam.findUnique({ where: { id } });
+    if (!exam) throw new NotFoundException('Exam not found');
+
+    return this.prisma.exam.update({
+      where: { id },
+      data: { status: 'DRAFT' },
+    });
   }
 
   async exportResults(examId: string) {

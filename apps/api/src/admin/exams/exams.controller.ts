@@ -9,13 +9,28 @@ import type { Response } from 'express';
 
 @Controller('api/v1/admin/exams')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.TRAINER)
 export class ExamsController {
   constructor(private readonly examsService: ExamsService) {}
 
   @Post()
   create(@Body() createExamDto: CreateExamDto, @Req() req: any) {
-    return this.examsService.createExam(createExamDto, req.user.id);
+    // Trainer-authored exams remain DRAFT pending admin approval.
+    return this.examsService.createExam(createExamDto, req.user.id, req.user.role);
+  }
+
+  // Approve & publish an exam. ADMIN only.
+  @Post(':id/publish')
+  @Roles(Role.ADMIN)
+  publish(@Param('id') id: string, @Req() req: any) {
+    return this.examsService.publishExam(id, req.user.id);
+  }
+
+  // Revert an exam to DRAFT. ADMIN only.
+  @Post(':id/unpublish')
+  @Roles(Role.ADMIN)
+  unpublish(@Param('id') id: string) {
+    return this.examsService.unpublishExam(id);
   }
 
   @Get()

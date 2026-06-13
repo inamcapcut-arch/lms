@@ -9,7 +9,7 @@ import { Role } from '@alex/database';
 
 @Controller('api/v1/admin/questions')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.TRAINER)
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 

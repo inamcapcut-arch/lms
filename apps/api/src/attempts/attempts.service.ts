@@ -169,6 +169,11 @@ export class AttemptsService implements OnModuleInit, OnModuleDestroy {
       throw new ForbiddenException('You have already completed this exam');
     }
 
+    // 2b. Only approved/published exams can be started.
+    if (assignment.exam.status !== 'PUBLISHED') {
+      throw new ForbiddenException('This exam is not yet available');
+    }
+
     // 3. Verify Exam Timeline
     const now = new Date();
     if (now < assignment.exam.startTime) {
