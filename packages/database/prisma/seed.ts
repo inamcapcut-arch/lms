@@ -20,6 +20,20 @@ async function main() {
   });
   console.log('Admin user created:', admin.email);
 
+  // Create Trainer
+  const trainerPassword = await bcrypt.hash('trainer123', 10);
+  const trainer = await prisma.user.upsert({
+    where: { email: 'trainer@alex.tech' },
+    update: {},
+    create: {
+      email: 'trainer@alex.tech',
+      passwordHash: trainerPassword,
+      name: 'Expert Trainer',
+      role: 'TRAINER',
+    },
+  });
+  console.log('Trainer user created:', trainer.email);
+
   // Create Student
   const studentPassword = await bcrypt.hash('student123', 10);
   const studentUser = await prisma.user.upsert({

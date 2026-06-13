@@ -43,7 +43,7 @@ export class ExamsService {
     await this.activityService.logActivity(
       ActivityType.BATCH_ASSIGNED,
       `Exam "${exam.title}" assigned to student candidates`,
-      adminId,
+      creatorId,
       { examId: exam.id }
     );
 

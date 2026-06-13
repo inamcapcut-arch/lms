@@ -43,6 +43,8 @@ export function LoginForm() {
 
       if (data.user.role === 'ADMIN') {
         router.push('/admin');
+      } else if (data.user.role === 'TRAINER') {
+        router.push('/trainer');
       } else {
         router.push('/student');
       }
