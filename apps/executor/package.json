@@ -1,0 +1,26 @@
+{
+  "name": "executor",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "dev": "nodemon src/index.ts",
+    "test-sandbox": "node --max-old-space-size=4096 -r ts-node/register/transpile-only src/test-submission.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.0.0",
+    "dockerode": "^4.0.0",
+    "dotenv": "^16.0.0",
+    "@alex/shared-types": "*",
+    "@alex/database": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "nodemon": "^3.0.0",
+    "@types/node": "^20.0.0",
+    "@types/dockerode": "^3.3.0"
+  }
+}

@@ -1,0 +1,315 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated-client"
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  TRAINER
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String    @default("")
+  role          Role      @default(STUDENT)
+  status        AccountStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+
+  student       Student?
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  activities    Activity[]
+}
+
+model Student {
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  registrationNumber String?   @unique
+  batch              String
+  department         String?
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignments        ExamAssignment[]
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+}
+
+model Exam {
+  id              String    @id @default(uuid())
+  title           String
+  description     String
+  startTime       DateTime
+  endTime         DateTime
+  durationMinutes Int
+  status          ExamStatus @default(DRAFT)
+  createdBy       String
+  createdAt       DateTime   @default(now())
+
+  questions       ExamQuestion[]
+  assignments     ExamAssignment[]
+}
+
+enum QuestionType {
+  MCQ
+  CODING
+}
+
+model Question {
+  id              String    @id @default(uuid())
+  type            QuestionType
+  text            String    @default("") // Problem statement for MCQ
+  marks           Int
+  difficulty      String
+  tags            String[]
+  createdAt       DateTime  @default(now())
+
+  exams           ExamQuestion[]
+  mcqOptions      MCQOption[]
+  codingQuestion  CodingQuestion?
+  submissions     Submission[]
+}
+
+model ExamQuestion {
+  examId          String
+  questionId      String
+  order           Int
+
+  exam            Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question        Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([examId, questionId])
+}
+
+model MCQOption {
+  id              String    @id @default(uuid())
+  questionId      String
+  optionText      String
+  isCorrect       Boolean
+
+  question        Question  @relation(fields: [questionId], references: [id])
+
+  @@index([questionId])
+}
+
+model CodingQuestion {
+  id               String    @id @default(uuid())
+  questionId       String    @unique
+  problemStatement String
+  constraints      String
+  sampleInput      String
+  sampleOutput     String
+
+  question         Question  @relation(fields: [questionId], references: [id])
+  testCases        TestCase[]
+}
+
+model TestCase {
+  id               String    @id @default(uuid())
+  codingQuestionId String
+  input            String
+  expectedOutput   String
+  isHidden         Boolean   @default(true)
+  weightage        Int       @default(10)
+
+  codingQuestion   CodingQuestion @relation(fields: [codingQuestionId], references: [id])
+  testCaseResults  TestCaseResult[]
+
+  @@index([codingQuestionId])
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model ExamAssignment {
+  id              String    @id @default(uuid())
+  examId          String
+  studentId       String
+  status          AssignmentStatus @default(PENDING)
+
+  exam            Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attempts        Attempt[]
+
+  @@index([examId])
+  @@index([studentId])
+}
+
+enum AttemptStatus {
+  ACTIVE
+  SUBMITTED
+  AUTO_SUBMITTED
+}
+
+model Attempt {
+  id                 String    @id @default(uuid())
+  examAssignmentId   String
+  startTime          DateTime  @default(now())
+  endTime            DateTime?
+  expiresAt          DateTime?
+  status             AttemptStatus @default(ACTIVE)
+  ipAddress          String?
+  deviceFingerprint  String?
+  lastSeen           DateTime?
+  deviceId           String?
+  browserInfo        String?
+
+  examAssignment     ExamAssignment @relation(fields: [examAssignmentId], references: [id], onDelete: Cascade)
+  submissions        Submission[]
+  drafts             Draft[]
+
+  @@index([examAssignmentId])
+  @@index([status, expiresAt])
+}
+
+enum EvaluationStatus {
+  PENDING
+  EVALUATING
+  PASSED
+  FAILED
+  COMPILING
+  COMPILATION_ERROR
+  RUNNING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  SYSTEM_ERROR
+}
+
+model Submission {
+  id                 String    @id @default(uuid())
+  attemptId          String
+  questionId         String
+  status             EvaluationStatus @default(PENDING)
+  scoreAwarded       Int       @default(0)
+
+  attempt            Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question           Question  @relation(fields: [questionId], references: [id])
+  codingSubmission   CodingSubmission?
+
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+model CodingSubmission {
+  id                 String           @id @default(uuid())
+  submissionId       String           @unique
+  language           String
+  codeSnippet        String
+  compileOutput      String?          @db.Text
+  status             EvaluationStatus @default(PENDING)
+  passedCount        Int              @default(0)
+  failedCount        Int              @default(0)
+  executionTimeMs    Int?
+  memoryUsedKb       Int?
+  createdAt          DateTime         @default(now())
+
+  submission         Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCaseResults    TestCaseResult[]
+}
+
+model TestCaseResult {
+  id                 String           @id @default(uuid())
+  codingSubmissionId String
+  testCaseId         String
+  status             EvaluationStatus
+  stdout             String?          @db.Text
+  stderr             String?          @db.Text
+  executionTimeMs    Int
+  memoryUsedKb       Int
+  createdAt          DateTime         @default(now())
+
+  codingSubmission   CodingSubmission @relation(fields: [codingSubmissionId], references: [id], onDelete: Cascade)
+  testCase           TestCase         @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@index([codingSubmissionId])
+  @@index([testCaseId])
+}
+
+model Draft {
+  id                 String    @id @default(uuid())
+  attemptId          String
+  questionId         String
+  draftData          Json      // Use Json type in Prisma
+  updatedAt          DateTime  @updatedAt
+
+  attempt            Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+}
+
+model Session {
+  id                 String    @id @default(uuid())
+  userId             String
+  refreshToken       String
+  ipAddress          String?
+  userAgent          String?
+  isRevoked          Boolean   @default(false)
+  expiresAt          DateTime
+
+  user               User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model AuditLog {
+  id                 String    @id @default(uuid())
+  userId             String
+  action             String
+  entity             String
+  entityId           String
+  timestamp          DateTime  @default(now())
+  metadata           String?   // JSON string
+
+  user               User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum ActivityType {
+  STUDENT_LOGGED_IN
+  EXAM_STARTED
+  EXAM_SUBMITTED
+  RESULT_EXPORTED
+  STUDENT_CREATED
+  PASSWORD_RESET
+  ACCOUNT_DELETED
+  BATCH_ASSIGNED
+}
+
+model Activity {
+  id        String       @id @default(uuid())
+  type      ActivityType
+  label     String
+  userId    String?
+  timestamp DateTime     @default(now())
+  metadata  Json?
+
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp])
+  @@index([userId])
+}

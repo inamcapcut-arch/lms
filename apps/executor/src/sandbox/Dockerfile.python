@@ -1,0 +1,4 @@
+FROM python:3.12.3-alpine
+RUN adduser -D -u 1000 sandbox
+WORKDIR /workspace
+# Keep container running or execute the python runner when started
