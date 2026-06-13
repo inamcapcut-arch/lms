@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/temp-sandbox
+.git
+.gitignore
+*.md
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example
