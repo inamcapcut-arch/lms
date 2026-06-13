@@ -17,6 +17,7 @@ import { AttemptsGateway } from './attempts.gateway';
 import { ActiveAttemptPayload, QuestionData, DraftData } from '@alex/shared-types';
 import { ActivityService } from '../activity/activity.service';
 import { ActivityType } from '@alex/database';
+import { seededShuffle } from '../common/utils/deterministic-shuffle';
 
 @Injectable()
 export class AttemptsService implements OnModuleInit, OnModuleDestroy {
@@ -1067,15 +1068,24 @@ export class AttemptsService implements OnModuleInit, OnModuleDestroy {
       : new Date(Math.min(attempt.startTime.getTime() + exam.durationMinutes * 60 * 1000, exam.endTime.getTime()));
     const secondsRemaining = this.calculateSecondsRemaining(expiresAt);
 
-    const formattedQuestions: QuestionData[] = exam.questions.map((eq: any) => {
+    // Per-student anti-cheating shuffle, seeded by attemptId so it is stable
+    // across resume and identical on every api replica. Only presentation
+    // order changes; option identity (id) is preserved, so grading is safe.
+    const shuffledExamQuestions = seededShuffle(exam.questions, `q:${attempt.id}`);
+
+    const formattedQuestions: QuestionData[] = shuffledExamQuestions.map((eq: any, index: number) => {
       const q = eq.question;
+      const shuffledOptions = q.mcqOptions
+        ? seededShuffle(q.mcqOptions, `o:${attempt.id}:${q.id}`)
+        : undefined;
       return {
         id: q.id,
         type: q.type,
         text: q.text,
-        order: eq.order,
+        // Per-student display order (1-based) rather than the shared exam order.
+        order: index + 1,
         marks: q.marks,
-        mcqOptions: q.mcqOptions?.map((o: any) => ({
+        mcqOptions: shuffledOptions?.map((o: any) => ({
           id: o.id,
           optionText: o.optionText,
         })),
